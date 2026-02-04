@@ -1,36 +1,148 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mini Restaurant Offers System (Full Stack)
 
-## Getting Started
+A fully runnable mini system with:
 
-First, run the development server:
+- **Backend API**: Node.js + Express, in-memory store
+- **Frontend UI**: Next.js (React) single-screen app (list + create)
+- **AI toggle stub**: simple sorting logic when enabled
+
+## Run Locally
+
+### 1) Backend (Express)
 
 ```bash
+cd backend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Backend runs on: `http://localhost:4000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+On startup, the backend seeds a set of active offers so the UI is never empty.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2) Frontend (Next.js)
 
-## Learn More
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Frontend runs on: `http://localhost:3000`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+#### Optional: Configure API base URL
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+By default the frontend calls `http://localhost:4000`.
 
-## Deploy on Vercel
+To override:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cd frontend
+echo 'NEXT_PUBLIC_API_BASE_URL=http://localhost:4000' > .env.local
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API
+
+### `POST /offers`
+
+Create a new offer.
+
+Request body:
+
+```json
+{
+  "restaurant_name": "string",
+  "start_time": "ISO datetime string",
+  "end_time": "ISO datetime string",
+  "discount_percent": 25
+}
+```
+
+Example:
+
+```bash
+curl -X POST http://localhost:4000/offers \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "restaurant_name": "Sushi Place",
+    "start_time": "2030-01-01T10:00:00.000Z",
+    "end_time": "2030-01-01T14:00:00.000Z",
+    "discount_percent": 30
+  }'
+```
+
+### `GET /offers`
+
+Returns **active offers only**.
+
+Active means: server time is between `start_time` and `end_time` (inclusive).
+
+Query param:
+
+- `enable_smart_recommendations=true|false`
+
+Example:
+
+```bash
+curl "http://localhost:4000/offers?enable_smart_recommendations=true"
+```
+
+Response shape:
+
+```json
+{
+  "enable_smart_recommendations": true,
+  "server_time": "ISO datetime string",
+  "offers": []
+}
+```
+
+## AI Toggle (Current Behavior)
+
+This project includes an “AI toggle” stub:
+
+- When `enable_smart_recommendations=true`: active offers are sorted by **highest discount first**
+- When `false`: active offers are returned in **creation order** (in-memory insertion order)
+
+Implementation lives in the backend service layer: [offersService.js](file:///Users/apple/Documents/zezt-test/backend/src/services/offersService.js).
+
+## Frontend Notes
+
+- The UI includes:
+  - an offers list (active offers)
+  - a create-offer form that calls `POST /offers`
+  - clear network/validation error states (client-side + backend validation)
+- Default backend URL is `http://localhost:4000` and can be overridden with `NEXT_PUBLIC_API_BASE_URL`.
+
+## Where Real ML Would Plug In Later
+
+The current “smart recommendations” logic is intentionally simple (a deterministic sort). A production-grade approach could replace/augment it by:
+
+- Calling an external recommendation service (model API) from the backend
+- Using restaurant/user context (location, cuisine preferences, historical conversions)
+- Returning a **ranked list** (or scored offers) instead of a basic sort
+
+The natural integration point is replacing the sorting branch in `getActiveOffers(...)` with:
+
+- a call to a model/service that returns scores for each offer, or
+- a retrieval + ranking step that selects the best offers per user/session.
+
+## Project Structure
+
+```text
+project-root/
+  backend/
+    src/
+      data/
+      routes/
+      services/
+      index.js
+    package.json
+  frontend/
+    app/
+      components/
+      layout.tsx
+      page.tsx
+    package.json
+  README.md
+```
